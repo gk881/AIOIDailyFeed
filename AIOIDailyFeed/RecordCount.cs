@@ -11,6 +11,8 @@ namespace AIOIDailyFeed
 {
     internal class RecordCount
     {
+        //Only really needed on applications first run - this initially populates the empty table 
+
         public static int NewRecordCount()
         {
             string connectionString = ConfigurationManager.ConnectionStrings["AioiVehicleDetails"].ToString();

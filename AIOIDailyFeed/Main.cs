@@ -19,12 +19,16 @@ namespace AIOIDailyFeed
             try
             {
                 bool runSuccess = false;
-                var conf = new ExcelReaderConfiguration { Password = "BrokerAIOI£!" }; 
+                var conf = new ExcelReaderConfiguration { Password = "BrokerAIOI£!" };
+                List<string> oldRegList = new List<string>();
+                List<string> newRegList = new List<string>(); 
+
 
                 foreach (string file in Directory.GetFiles(ConfigurationSettings.AppSettings["Path"].ToString()))
                 {
                     DataTableCollection tableCollection;
                     DataTable dt = new DataTable();
+                    DataTable oldReg = new DataTable(); 
                     DataSet result = new DataSet();
 
                     using (var stream = File.Open(file, FileMode.Open, FileAccess.Read))
@@ -58,9 +62,14 @@ namespace AIOIDailyFeed
 
                             tableCollection = result.Tables;
                             dt = tableCollection[0];
+                            oldReg = OldRegistrations();
 
-                            ClearOldPolicy.Remove(dt); 
-                            Write(dt,records);
+                            oldRegList = Differences.Regs(dt, oldReg, false);
+                            newRegList = Differences.Regs(dt, oldReg, true); 
+
+                            ClearOldPolicy.Remove(oldRegList);
+
+                            Write(dt, records, newRegList);
                             stream.Close();
                             CleanUp(file);
                         }
@@ -77,11 +86,12 @@ namespace AIOIDailyFeed
             }
         }
 
-        public static void Write(DataTable dt, int records)
+        public static void Write(DataTable dt, int records, List<string> newRegList)
         {
             string connectionString = ConfigurationManager.ConnectionStrings["AioiVehicleDetails"].ToString();
             int rowIndex = 0;
-            int updateCount = 0; 
+            int updateCount = 0;
+
 
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
@@ -106,7 +116,7 @@ namespace AIOIDailyFeed
                                     DateTime? updateDate = null;
                                     DateTime? midSentDate = null;
                                     int? midFileNo = null;
-                                    
+
 
                                     cmd.Parameters.AddWithValue("@recordType", dt.Rows[rowIndex]["Record_Type"].ToString().TrimEnd());
                                     cmd.Parameters.AddWithValue("@policyNum", dt.Rows[rowIndex]["Policy_Number"].ToString().TrimEnd());
@@ -185,10 +195,12 @@ namespace AIOIDailyFeed
                                         cmd.Parameters.AddWithValue("@midSentDate", midSentDate).Value = DBNull.Value;
                                     }
 
+                                    
                                     if (!updateDate.Equals(null))
                                     {
-                                        if (updateDate.Value> DateTime.Now.AddDays(-1) && updateDate.Value < DateTime.Now||records == 0)
-
+                                        int result = newRegList.IndexOf(dt.Rows[rowIndex]["Registration_Number"].ToString().TrimEnd());
+                                        if (result != -1)
+                                        //if (updateDate.Value > DateTime.Now.AddDays(-1) && updateDate.Value < DateTime.Now || records == 0)
                                         {
                                             cmd.CommandText = "INSERT INTO dbo.TabAIOIVehicleDetails(recordType_char,policyNum_char,foreignRegInd_char,registrationNumber_char," +
                                                 "vehicleDerivative_char,namedDriver_char,tradePlate_char,coverStartDate_date,coverEndDate_date,insertDate_date,updateDate_date," +
@@ -198,20 +210,20 @@ namespace AIOIDailyFeed
                                                 "@midFileNo,@midSent,@midSentDate,@midStatus,@midError,@vehicleMake,@vehicleModel,@insertedBy,@updatedBy,@dateCreated)";
 
                                             cmd.ExecuteNonQuery();
-                                            updateCount++; 
+                                            updateCount++;
                                             Log.WriteLine("Policy: " + dt.Rows[rowIndex]["Policy_Number"].ToString().TrimEnd() + ", Registration: " + dt.Rows[rowIndex]["Registration_Number"].ToString().TrimEnd() + " Saved.");
                                         }
                                     }
                                     else
                                     {
-                                        Log.WriteLine("ERROR: Policy: " + dt.Rows[rowIndex]["Policy_Number"].ToString().TrimEnd() + ", Registration: " + dt.Rows[rowIndex]["Registration_Number"].ToString().TrimEnd() + " not saved due to NULL update date.");                                         
+                                        Log.WriteLine("ERROR: Policy: " + dt.Rows[rowIndex]["Policy_Number"].ToString().TrimEnd() + ", Registration: " + dt.Rows[rowIndex]["Registration_Number"].ToString().TrimEnd() + " not saved due to NULL update date.");
                                     }
 
                                     rowIndex++;
                                 }
                             }
                         }
-                        
+
                         Log.WriteLine("Uploaded " + updateCount + " new records");
                     }
                 }
@@ -235,14 +247,42 @@ namespace AIOIDailyFeed
 
         }
 
-        public static void CleanUp(string file)
+        private static DataTable OldRegistrations()
         {
-            var newFileDestination = Path.Combine(ConfigurationManager.AppSettings["ArchPath"] + Path.GetFileName(file));
+            var oldReg = new DataTable(); 
 
-            File.Move(file, newFileDestination);
-            Log.WriteLine("File archived to " + newFileDestination);
+            string connectionString = ConfigurationManager.ConnectionStrings["AioiVehicleDetails"].ToString();
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                if (connection.State == ConnectionState.Closed)
+                {
+                    connection.Open();
+                }
+
+                using (SqlCommand cmd = connection.CreateCommand())
+                {
+                    cmd.CommandType = CommandType.Text;
+                    cmd.CommandText = "SELECT * FROM tabAIOIVehicleDetails;";
+                    cmd.ExecuteNonQuery();
+
+                    SqlDataAdapter da = new SqlDataAdapter(cmd);
+                    da.Fill(oldReg);
+                    da.Dispose();
+                }
+
+                return oldReg;
+
+            }
+        }
+            public static void CleanUp(string file)
+            {
+                var newFileDestination = Path.Combine(ConfigurationManager.AppSettings["ArchPath"] + Path.GetFileName(file));
+
+                File.Move(file, newFileDestination);
+                Log.WriteLine("File archived to " + newFileDestination);
+
+            }
 
         }
-
-    }
-}
+    } 

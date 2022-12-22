@@ -5,7 +5,6 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
-
 using WinSCP;
 
 namespace AIOIDailyFeed
@@ -36,5 +35,5 @@ namespace AIOIDailyFeed
 
         }
 
-    }
+    } 
 }

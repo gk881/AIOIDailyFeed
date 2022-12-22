@@ -17,6 +17,6 @@ else
 
     AIOIDailyFeed.Main.ReadIn(records);
 
-    AIOIDailyFeed.Log.WriteLine("Process Complete  ");
+    AIOIDailyFeed.Log.WriteLine("Process Complete  "); 
 
 }

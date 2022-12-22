@@ -29,5 +29,5 @@ namespace AIOIDailyFeed
                 sw.WriteLine(value);
             }
         }
-    }
+    } 
 }

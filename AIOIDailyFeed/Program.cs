@@ -17,6 +17,8 @@ else
 
     AIOIDailyFeed.Main.ReadIn(records);
 
+    //AIOIDailyFeed.RemoveDupe.DuplicateCheck(); 
+
     AIOIDailyFeed.Log.WriteLine("Process Complete  "); 
 
 }

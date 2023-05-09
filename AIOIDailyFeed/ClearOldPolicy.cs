@@ -13,7 +13,7 @@ namespace AIOIDailyFeed
     {
 
 
-        public static void Remove(List<string> oldRegList)
+        public static void Remove(List<Vehicle> oldRegList)
         {
             string connectionString = ConfigurationManager.ConnectionStrings["AioiVehicleDetails"].ToString();
 
@@ -30,11 +30,11 @@ namespace AIOIDailyFeed
                     if (oldRegList.Count > 1)
                     {
 
-                        foreach (string reg in oldRegList)
+                        foreach (Vehicle veh in oldRegList)
                         {
 
-                            cmd.Parameters.AddWithValue("@registration", reg);
-                            cmd.Parameters.AddWithValue("@offCoverDate", DateTime.Now.ToString("yyyy-MM-dd 00:00:00:000"));
+                            cmd.Parameters.AddWithValue("@registration", veh.registration);
+                            cmd.Parameters.AddWithValue("@offCoverDate", veh.coverEndDate);
 
                             cmd.CommandText = "UPDATE tabAIOIVehicleDetails SET coverEndDate_date = @offCoverDate WHERE registrationNumber_char = @registration " +
                                                 "AND coverEndDate_date > GETDATE(); ";
@@ -60,7 +60,7 @@ namespace AIOIDailyFeed
 
         //    var newTable = new DataTable();
 
-        //    List<string> oldList = oldRegistration.Rows.OfType<DataRow>().Select(dr => dr.Field<string>("registrationNumber_char")).ToList();
+        //   List<string> oldList = oldRegistration.Rows.OfType<DataRow>().Select(dr => dr.Field<string>("registrationNumber_char")).ToList();
         //    List<string> newList = dt.Rows.OfType<DataRow>().Select(dr => dr.Field<string>("Registration_Number")).ToList();
 
 

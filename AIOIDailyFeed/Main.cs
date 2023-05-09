@@ -20,15 +20,15 @@ namespace AIOIDailyFeed
             {
                 bool runSuccess = false;
                 var conf = new ExcelReaderConfiguration { Password = "BrokerAIOI£!" };
-                List<string> oldRegList = new List<string>();
-                List<string> newRegList = new List<string>(); 
+                List<Vehicle> oldRegList = new List<Vehicle>();
+                List<Vehicle> newRegList = new List<Vehicle>();
 
 
                 foreach (string file in Directory.GetFiles(ConfigurationSettings.AppSettings["Path"].ToString()))
                 {
                     DataTableCollection tableCollection;
                     DataTable dt = new DataTable();
-                    DataTable oldReg = new DataTable(); 
+                    DataTable oldReg = new DataTable();
                     DataSet result = new DataSet();
 
                     using (var stream = File.Open(file, FileMode.Open, FileAccess.Read))
@@ -65,9 +65,9 @@ namespace AIOIDailyFeed
                             oldReg = OldRegistrations();
 
                             oldRegList = Differences.Regs(dt, oldReg, false);
-                            newRegList = Differences.Regs(dt, oldReg, true); 
+                            newRegList = Differences.Regs(dt, oldReg, true);
 
-                            ClearOldPolicy.Remove(oldRegList);
+                            //ClearOldPolicy.Remove(oldRegList);
 
                             Write(dt, records, newRegList);
                             stream.Close();
@@ -86,11 +86,14 @@ namespace AIOIDailyFeed
             }
         }
 
-        public static void Write(DataTable dt, int records, List<string> newRegList)
+        public static void Write(DataTable dt, int records, List<Vehicle> newRegList)
         {
             string connectionString = ConfigurationManager.ConnectionStrings["AioiVehicleDetails"].ToString();
             int rowIndex = 0;
-            int updateCount = 0;
+            int updateCount = 0; 
+            List<string> aioiPolicyList = new List<string>();
+            aioiPolicyList = GetAioiPolicyList();
+
 
 
             using (SqlConnection connection = new SqlConnection(connectionString))
@@ -119,7 +122,7 @@ namespace AIOIDailyFeed
 
 
                                     cmd.Parameters.AddWithValue("@recordType", dt.Rows[rowIndex]["Record_Type"].ToString().TrimEnd());
-                                    cmd.Parameters.AddWithValue("@policyNum", dt.Rows[rowIndex]["Policy_Number"].ToString().TrimEnd());
+                                    //cmd.Parameters.AddWithValue("@policyNum", dt.Rows[rowIndex]["Policy_Number"].ToString().TrimEnd());
                                     cmd.Parameters.AddWithValue("@foreignReg", dt.Rows[rowIndex]["Foreign_Reg_Ind"].ToString().TrimEnd());
                                     cmd.Parameters.AddWithValue("@registration", dt.Rows[rowIndex]["Registration_Number"].ToString().TrimEnd());
                                     cmd.Parameters.AddWithValue("@vehDerivative", dt.Rows[rowIndex]["Vehicle_Derivative"].ToString().TrimEnd());
@@ -195,12 +198,21 @@ namespace AIOIDailyFeed
                                         cmd.Parameters.AddWithValue("@midSentDate", midSentDate).Value = DBNull.Value;
                                     }
 
-                                    
-                                    if (!updateDate.Equals(null))
-                                    {
-                                        int result = newRegList.IndexOf(dt.Rows[rowIndex]["Registration_Number"].ToString().TrimEnd());
-                                        if (result != -1)
-                                        //if (updateDate.Value > DateTime.Now.AddDays(-1) && updateDate.Value < DateTime.Now || records == 0)
+                                    //if (dt.Rows[rowIndex]["Policy_Number"].ToString().TrimEnd().Equals("F43063") || dt.Rows[rowIndex]["Policy_Number"].ToString().TrimEnd().Equals("F43075") ||
+                                    //    dt.Rows[rowIndex]["Policy_Number"].ToString().TrimEnd().Equals("F43038") || dt.Rows[rowIndex]["Policy_Number"].ToString().TrimEnd().Equals("F42435R"))
+                                    //{
+
+                                        string polRefToCheck = dt.Rows[rowIndex]["Policy_Number"].ToString().TrimEnd();                                        
+                                        string checkedPolRef = LinkedPolicy(polRefToCheck,aioiPolicyList);
+
+                                        cmd.Parameters.AddWithValue("@policyNum", checkedPolRef);
+
+
+                                    int result = newRegList.IndexOf(Differences.ConvertToVehicleNew(dt.Rows[rowIndex]));
+
+
+
+                                    if (result != -1)
                                         {
                                             cmd.CommandText = "INSERT INTO dbo.TabAIOIVehicleDetails(recordType_char,policyNum_char,foreignRegInd_char,registrationNumber_char," +
                                                 "vehicleDerivative_char,namedDriver_char,tradePlate_char,coverStartDate_date,coverEndDate_date,insertDate_date,updateDate_date," +
@@ -211,13 +223,9 @@ namespace AIOIDailyFeed
 
                                             cmd.ExecuteNonQuery();
                                             updateCount++;
-                                            Log.WriteLine("Policy: " + dt.Rows[rowIndex]["Policy_Number"].ToString().TrimEnd() + ", Registration: " + dt.Rows[rowIndex]["Registration_Number"].ToString().TrimEnd() + " Saved.");
+                                            Log.WriteLine("Policy: " + checkedPolRef + ", Registration: " + dt.Rows[rowIndex]["Registration_Number"].ToString().TrimEnd() + " Saved.");
                                         }
-                                    }
-                                    else
-                                    {
-                                        Log.WriteLine("ERROR: Policy: " + dt.Rows[rowIndex]["Policy_Number"].ToString().TrimEnd() + ", Registration: " + dt.Rows[rowIndex]["Registration_Number"].ToString().TrimEnd() + " not saved due to NULL update date.");
-                                    }
+                                    //}
 
                                     rowIndex++;
                                 }
@@ -249,7 +257,7 @@ namespace AIOIDailyFeed
 
         private static DataTable OldRegistrations()
         {
-            var oldReg = new DataTable(); 
+            var oldReg = new DataTable();
 
             string connectionString = ConfigurationManager.ConnectionStrings["AioiVehicleDetails"].ToString();
 
@@ -275,14 +283,102 @@ namespace AIOIDailyFeed
 
             }
         }
-            public static void CleanUp(string file)
-            {
-                var newFileDestination = Path.Combine(ConfigurationManager.AppSettings["ArchPath"] + Path.GetFileName(file));
+        public static void CleanUp(string file)
+        {
+            var newFileDestination = Path.Combine(ConfigurationManager.AppSettings["ArchPath"] + Path.GetFileName(file));
 
-                File.Move(file, newFileDestination);
-                Log.WriteLine("File archived to " + newFileDestination);
-
-            }
+            File.Move(file, newFileDestination);
+            Log.WriteLine("File archived to " + newFileDestination);
 
         }
-    } 
+
+     
+
+        private static string LinkedPolicy(string polRefToCheck, List<string> aioiPolicyList)
+        {
+            //Check to see if there are any associated policies that the vehicle should be linked to 
+            
+            string checkedPolRef = "";
+
+
+            if (polRefToCheck.Length == 11)
+            { 
+                polRefToCheck = polRefToCheck.Substring(0, 6);
+            }
+
+
+            bool exists = aioiPolicyList.Any(s => s.Contains(polRefToCheck));
+
+            //if we don't have that policy, do we have it without the letter on the end? 
+            if (!exists)
+            {
+                var mappedPolFound = aioiPolicyList.Where(s => s == polRefToCheck[0..^1]);
+
+                //if  we still don't have it, do we have it with a different letter on the end? 
+                if (mappedPolFound.Count() < 1)
+                {
+                    var postfixFound = aioiPolicyList.Where(s => s.Remove(s.Length - 1).Equals(polRefToCheck.Remove(polRefToCheck.Length - 1)));
+
+                    if (postfixFound.Count() < 1)
+                    {
+                        Log.WriteLine(polRefToCheck + "cannot be found");
+                    }
+                    else
+                    {
+                        checkedPolRef = postfixFound.First();
+
+                    }
+                }
+                else
+                {
+                    checkedPolRef = polRefToCheck.Remove(polRefToCheck.Length - 1);
+                }
+
+            }
+            else
+            {
+                checkedPolRef = polRefToCheck; 
+            }
+
+
+            //These policy refs need to be changed to Motor Ichiban ref MU00000
+            if (polRefToCheck.Equals("F43063") || polRefToCheck.Equals("F43075") || polRefToCheck.Equals("F43038"))
+            {
+                checkedPolRef = "MU00000";
+            }
+
+
+            return checkedPolRef;
+        }
+
+        private static List<string> GetAioiPolicyList()
+        {
+            var dt = new DataTable();
+
+            string connectionString = ConfigurationManager.ConnectionStrings["AioiVehicleDetails"].ToString();
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                if (connection.State == ConnectionState.Closed)
+                {
+                    connection.Open();
+                }
+
+                using (SqlCommand cmd = connection.CreateCommand())
+                {
+                    cmd.CommandType = CommandType.Text;
+                    cmd.CommandText = "SELECT DISTINCT (PolicyNumber_char) FROM dbo.tabAIOIPolicy;";
+                    cmd.ExecuteNonQuery();
+
+                    SqlDataAdapter da = new SqlDataAdapter(cmd);
+                    da.Fill(dt);
+                    da.Dispose();
+                }
+
+                List<string> aioiPolicyList = dt.Rows.OfType<DataRow>().Select(dr => dr.Field<string>("policyNumber_char")).ToList();
+
+                return aioiPolicyList;
+            }
+        }
+    }
+}

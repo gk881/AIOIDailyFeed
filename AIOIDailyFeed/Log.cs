@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Configuration;
 
 namespace AIOIDailyFeed
 {
@@ -21,7 +22,7 @@ namespace AIOIDailyFeed
 
         private static void WriteLogFile(String value)
         {
-        String logPath = @"C:\Program Files\brokerdirect\AIOIArchive\";
+            String logPath = ConfigurationManager.AppSettings["LogPath"].ToString(); 
             String timeStamp = DateTime.Now.ToString("yyyy-MM-dd");
 
             using (StreamWriter sw = new StreamWriter(logPath + timeStamp + ".txt", true))

@@ -32,14 +32,18 @@ namespace AIOIDailyFeed
 
                         foreach (Vehicle veh in oldRegList)
                         {
+                            if (veh.coverEndDate > DateTime.Now)
+                            {
 
-                            cmd.Parameters.AddWithValue("@registration", veh.registration);
-                            cmd.Parameters.AddWithValue("@offCoverDate", veh.coverEndDate);
+                                cmd.Parameters.AddWithValue("@registration", veh.registration);
+                                cmd.Parameters.AddWithValue("@offCoverDate", veh.coverEndDate);
 
-                            cmd.CommandText = "UPDATE tabAIOIVehicleDetails SET coverEndDate_date = @offCoverDate WHERE registrationNumber_char = @registration " +
-                                                "AND coverEndDate_date > GETDATE(); ";
-                            cmd.ExecuteNonQuery();
-                            cmd.Parameters.Clear();
+                                cmd.CommandText = "UPDATE tabAIOIVehicleDetails SET coverEndDate_date = CAST(CAST(GETDATE() AS DATE) AS DATETIME) WHERE registrationNumber_char = @registration " +
+                                                    "AND coverEndDate_date > GETDATE(); ";
+                                cmd.ExecuteNonQuery();
+                                cmd.Parameters.Clear();
+                                Console.WriteLine("Ended cover for " + veh.registration); 
+                            }
                         }
 
                     }

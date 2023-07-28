@@ -46,27 +46,29 @@ namespace AIOIDailyFeed
 
         public static Vehicle ConvertToVehicleNew(DataRow row)
         {
-            Vehicle vehicle = new Vehicle();
-            var DT = row.Field<string>("Cover_End_Date");
-            DateTime date; 
-
-            vehicle.registration = row.Field<string>("Registration_Number");
-            //vehicle.coverEndDate = DateTime.ParseExact(DT, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-
-            if (DateTime.TryParse(DT, out date))
             {
-                vehicle.coverEndDate = date;
-            }
-            else
-            {
-                vehicle.coverEndDate = DateTime.ParseExact(DT, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                Vehicle vehicle = new Vehicle();
+                var DT = row.Field<string>("Cover_End_Date");
+                DateTime date;
+
+                vehicle.registration = row.Field<string>("Registration_Number");
+                //vehicle.coverEndDate = DateTime.ParseExact(DT, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+
+                if (DateTime.TryParse(DT, out date))
+                {
+                    vehicle.coverEndDate = date;
+                }
+                else
+                {
+                    vehicle.coverEndDate = DateTime.ParseExact(DT, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                }
+
+
+                return vehicle;
             }
 
 
-            return vehicle;
+
         }
-
-
-
     }
 }

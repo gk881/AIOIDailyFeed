@@ -67,7 +67,7 @@ namespace AIOIDailyFeed
                             oldRegList = Differences.Regs(dt, oldReg, false);
                             newRegList = Differences.Regs(dt, oldReg, true);
 
-                            //ClearOldPolicy.Remove(oldRegList);
+                            ClearOldPolicy.Remove(oldRegList);
 
                             Write(dt, records, newRegList);
                             stream.Close();
@@ -77,12 +77,47 @@ namespace AIOIDailyFeed
                 }
                 if (!runSuccess)
                 {
-                    Log.WriteLine("Error. No source file found. ");
+                    string msg = "Error. No source file found."; 
+                    Log.WriteLine(msg);
+
+                    AddErrorLog(msg); 
                 }
             }
             catch (Exception ex)
             {
                 Log.WriteLine("Error. Could not read excel file: " + ex.Message);
+                AddErrorLog(ex.Message); 
+            }
+        }
+
+        private static void AddErrorLog(string msg)
+        {
+            {
+                try
+                {
+
+                    using (SqlConnection con = new SqlConnection(ConfigurationManager.ConnectionStrings["ErrorLog"].ConnectionString))
+                    {
+
+                            using (var cmd = new SqlCommand("up_ins_tabProcessLog", con)
+                            {
+                                CommandType = CommandType.StoredProcedure
+                            })
+                            {
+                                cmd.Parameters.Add("@Routine", SqlDbType.VarChar, 250).Value = msg;
+                                cmd.Parameters.Add("@Step", SqlDbType.VarChar, 250).Value = msg;
+                                cmd.Parameters.Add("@Outcome", SqlDbType.VarChar, 250).Value = msg;
+                                cmd.Parameters.Add("@Description", SqlDbType.VarChar).Value = msg;
+
+                                con.Open();
+                                cmd.ExecuteNonQuery();
+ }
+                        }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
             }
         }
 
@@ -213,18 +248,24 @@ namespace AIOIDailyFeed
 
 
                                     if (result != -1)
-                                        {
-                                            cmd.CommandText = "INSERT INTO dbo.TabAIOIVehicleDetails(recordType_char,policyNum_char,foreignRegInd_char,registrationNumber_char," +
-                                                "vehicleDerivative_char,namedDriver_char,tradePlate_char,coverStartDate_date,coverEndDate_date,insertDate_date,updateDate_date," +
-                                                "activeFlag_char,midFileSeqNo_int,midSentInd_char,midSentDate_date,midStatus_char,midErrorCodes_char,vehicleMake_char,vehicleModel_char," +
-                                                "insertedBy_char,updatedBy_char,dateCreated_date)" +
-                                                "VALUES(@recordType,@policyNum,@foreignReg,@registration,@vehDerivative,@driver,@tradePlate,@onDate,@offDate,@insertDate,@updateDate,@activeFlag," +
-                                                "@midFileNo,@midSent,@midSentDate,@midStatus,@midError,@vehicleMake,@vehicleModel,@insertedBy,@updatedBy,@dateCreated)";
+                                    {
+                                        cmd.CommandText = "INSERT INTO dbo.TabAIOIVehicleDetails(recordType_char,policyNum_char,foreignRegInd_char,registrationNumber_char," +
+                                            "vehicleDerivative_char,namedDriver_char,tradePlate_char,coverStartDate_date,coverEndDate_date,insertDate_date,updateDate_date," +
+                                            "activeFlag_char,midFileSeqNo_int,midSentInd_char,midSentDate_date,midStatus_char,midErrorCodes_char,vehicleMake_char,vehicleModel_char," +
+                                            "insertedBy_char,updatedBy_char,dateCreated_date)" +
+                                            "VALUES(@recordType,@policyNum,@foreignReg,@registration,@vehDerivative,@driver,@tradePlate,@onDate,@offDate,@insertDate,@updateDate,@activeFlag," +
+                                            "@midFileNo,@midSent,@midSentDate,@midStatus,@midError,@vehicleMake,@vehicleModel,@insertedBy,@updatedBy,@dateCreated)";
 
-                                            cmd.ExecuteNonQuery();
-                                            updateCount++;
-                                            Log.WriteLine("Policy: " + checkedPolRef + ", Registration: " + dt.Rows[rowIndex]["Registration_Number"].ToString().TrimEnd() + " Saved.");
-                                        }
+                                        cmd.ExecuteNonQuery();
+                                        updateCount++;
+                                        Log.WriteLine("Policy: " + checkedPolRef + ", Registration: " + dt.Rows[rowIndex]["Registration_Number"].ToString().TrimEnd() + " Saved.");
+                                    }
+                                    else
+                                    {
+                                        Log.WriteLine("NOT ADDED: " + checkedPolRef + ", Registration: " + dt.Rows[rowIndex]["Registration_Number"].ToString().TrimEnd() +" Because result = 0"); 
+                                    }
+
+
                                     //}
 
                                     rowIndex++;

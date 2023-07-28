@@ -11,7 +11,10 @@ else
 {
     AIOIDailyFeed.Log.WriteLine("Process Started");
 
+#if DEBUG
+#else
     AIOIDailyFeed.FTPAccess.ConnectToFTP();
+#endif
 
     int records = AIOIDailyFeed.RecordCount.NewRecordCount();
 
